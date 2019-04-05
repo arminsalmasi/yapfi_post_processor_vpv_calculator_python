@@ -4,22 +4,6 @@ from tc_python import *
 from get_input import Indata
 import time
 
-
-"""
-This example shows how to run multiple property (step) diagram calculations in parallel. TC-Python supports
-parallel computation only by using multi-processing.
-The alloy system Fe-C-Cr is used as an example.
-"""
-
-def do_step_non_functional(param):
-    calculations = param['data']
-    for n, element in enumerate(param['conditionsElementNames']):                    
-        calculations.set_condition(ThermodynamicQuantity.mole_fraction_of_a_component(element),param['compositions'][n] )
-    r = calculations.calculate().get_value_of(ThermodynamicQuantity.mole_fraction_of_a_phase('liquid'))
-    return r
-
-
-
 def do_step(param):
     with TCPython() as tc:
         #tc.set_cache_folder(os.path.basename(__file__) + "_cache")
@@ -35,7 +19,14 @@ def do_step(param):
             calculations.set_condition(ThermodynamicQuantity.mole_fraction_of_a_component(element),param['compositions'][n] )
         r = calculations.calculate().get_value_of(ThermodynamicQuantity.mole_fraction_of_a_phase('liquid'))
     return r
-    
+
+def do_step_non_functional(param):
+    calculations = param['data']
+    for n, element in enumerate(param['conditionsElementNames']):                    
+        calculations.set_condition(ThermodynamicQuantity.mole_fraction_of_a_component(element),param['compositions'][n] )
+    r = calculations.calculate().get_value_of(ThermodynamicQuantity.mole_fraction_of_a_phase('liquid'))
+    return r
+
 
 if __name__ == "__main__":
     path = '/home/salmasi/Documents/workdir/8-LM-7_B'
@@ -51,6 +42,7 @@ if __name__ == "__main__":
     databases ='TCFE8'
     phaseNames = rawData.phaseNames
     keys = ['databases','elementNames','phaseNames','N','P','T','compositions','conditionsElementNames','data']
+    
     parameter={}
     parameters=[]
     for gridPoint in range(rawData.numberOfGridPoints):
@@ -70,17 +62,15 @@ if __name__ == "__main__":
                 parameter[key] = equilibriumConditions[key]
         parameters.append(dict(parameter))
 
-    ''' functional single treaded '''
+    ''' single tread 1 '''
     start = time.time()    
     for gridPoint in range(rawData.numberOfGridPoints):            
         print(gridPoint)
         out1 = do_step(parameters[gridPoint])
         print(out1)
     end = time.time()
-    print('timelog functional single treaded ',end-start)
-    
-
-    ''' functional parallel '''
+    print('timelog single tread 1 ',end-start)
+    ''' parallel 1'''
     start = time.time()    
     results = []
     processes = 8
@@ -89,10 +79,13 @@ if __name__ == "__main__":
             results.append(out1)
     print(results)
     end = time.time()
-    print('timelog functional parallel ',end-start)
-    
+    print('timelog parallel 1',end-start)
 
-    ''' non functional single traded '''
+
+    ''' single tread 1'''
+    parameter2={}
+    parameters2=[]
+    start = time.time()    
     with TCPython() as tc:
         #tc.set_cache_folder(os.path.basename(__file__) + "_cache")
         init = tc.select_database_and_elements(databases, rawData.elementNames).without_default_phases()
@@ -103,16 +96,9 @@ if __name__ == "__main__":
         calculations.set_condition(ThermodynamicQuantity.temperature(), equilibriumConditions['T'])
         calculations.set_condition(ThermodynamicQuantity.pressure(), equilibriumConditions['P'])
         calculations.set_condition(ThermodynamicQuantity.system_size(), equilibriumConditions['N'])   
-        parameter2={}
-        parameters2=[]
+
         for gridPoint in range(rawData.numberOfGridPoints):
             for key in keys:
-                if key == 'databases':
-                    parameter2[key] = databases
-                if key == 'elementNames':
-                    parameter2[key] = rawData.elementNames
-                if key == 'phaseNames':
-                    parameter2[key] = phaseNames
                 if key == 'conditionsElementNames':
                     parameter2[key] = conditionsElementNames
                 if key == 'compositions':
@@ -122,10 +108,23 @@ if __name__ == "__main__":
                     parameter2[key] = equilibriumConditions[key]
                 if key == 'data':
                     parameter2[key] = calculations
-            parameters2.append(dict(parameter))
-        start = time.time()    
+            parameters2.append(dict(parameter2))
+        
         for gridPoint in range(rawData.numberOfGridPoints):            
             out2 = do_step_non_functional(parameters2[gridPoint])
             print(out2)
         end = time.time()
-        print('timelog non-functional single treaded ',end-start)
+        print('timelog single tread 2 ',end-start)
+
+        
+        ''' parallel 2'''
+        start = time.time()    
+        results = []
+        processes = 8
+        with concurrent.futures.ProcessPoolExecutor(processes) as executor:
+            for out2 in executor.map(do_step_non_functional, parameters2):
+                results.append(out2)
+        print(results)
+        end = time.time()
+        print('timelog parallel 2',end-start)
+    
