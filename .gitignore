@@ -123,3 +123,10 @@ dmypy.json
 .pyre/
 
 .poly3
+
+*.chache
+*.chache/*
+__pychache__
+
+log
+
