@@ -1,3 +1,51 @@
+from get_input import Indata
+from equilibrium_calculator import Equilibrium
+import time
+import concurrent.futures
+
+def main():
+    path = '/home/salmasi/Documents/workdir/8-LM-7_B'
+    rawData = Indata(path)
+    rawData.get_files()
+    phaseNames = {'thermodynamics':rawData.phaseNames[0:], 'kinetics':rawData.phaseNames[0]}
+    conditions = { \
+        'databases':['TCFE8','', 'MOBFE4', ''], \
+        'elementNames':rawData.elementNames, \
+        'phaseNames':phaseNames, \
+        'N':1,'P':1e5,'T':1723.15, \
+        'compositions':rawData.moleFractions, \
+        'ementalConditions':[['C','Co','Ti','N'],[0,1,2,3],['X','X','X','X'],[],[]] }    #ementalConditions':[[elname],[index],[variables X W Ac ACP],[activity value],[reference phase]] \  '''
+    equilibriumCalculator = Equilibrium(conditions)
+    r = equilibriumCalculator.do_calculate()   
+
+
+    #conditionsParallel = []
+    #for gridPoint in range(rawData.numberOfGridPoints):
+    #    compositions = rawData.moleFractions[gridPoint*rawData.numberOfElements:(gridPoint+1)*rawData.numberOfElements]
+    #    conditionsParallel.append({ \
+    #    'databases':['TCFE8','', 'MOBFE4', ''], \
+    #    'elementNames':rawData.elementNames, \
+    #    'phaseNames':phaseNames, \
+    #    'N':1,'P':1e5,'T':1723.15, \
+    #    'compositions':compositions, \
+    #    'ementalConditions':[['C','Co','Ti','N'],[0,1,2,3],['X','X','X','X'],[],[]] })
+    #calculator = Equilibrium(conditionsParallel)
+    #results = calculator.do_parallle_calculator()
+
+
+
+if __name__  == "__main__":
+    main() 
+
+
+
+
+
+
+
+""" 
+
+
 import os
 import numpy as np
 import re
@@ -24,6 +72,7 @@ def main():
         data_initializer = tc.select_database_and_elements(databases[0], rawData.elementNames).without_default_phases()
         thermodynamicPhases = phaseNames[0]
         thermodynamicPhases = thermodynamicPhases if isinstance(thermodynamicPhases,list) else [thermodynamicPhases]
+        
         for phase in thermodynamicPhases:
             data_initializer.select_phase(phase)       
         
@@ -33,6 +82,8 @@ def main():
         for phase in kineticPhases:
             data_initializer.select_phase(phase)
         initialized_system = data_initializer.get_system()
+        print(initialized_system.get_phases_in_system())
+        
         calculations = initialized_system.with_single_equilibrium_calculation()
         if 'T' in equilibriumConditions:
             calculations.set_condition(ThermodynamicQuantity.temperature(), equilibriumConditions['T'])
@@ -82,4 +133,4 @@ def main():
     
 
 if __name__  == "__main__":
-    main()
+    main() """

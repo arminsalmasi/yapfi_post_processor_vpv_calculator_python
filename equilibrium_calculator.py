@@ -1,81 +1,139 @@
 from tc_python import *
 import itertools as itertool
+import concurrent.futures
+import time
 
 class Equilibrium:
+    ''' i / o '''
+    eqConditions, eqState = 0, 0
 
-    ''' input '''
-    databases = 0 
-    phaseNames = 0
-    elementNames = 0
-    equilibriumConditions = 0 
-    fractions = 0
-    ''' output '''
-    moleFractions = 0
-    moleFractionsInPhases = 0
-    numberOfMoles = 0
-    numberOfMolesInPhases = 0 
-    uFractions = 0 
-    ufractionsInPhases = 0
-    volumeFractions = 0
-    volumeFractionFromUFractions = 0
-    phaseFractions = 0 
-    mobilities = 0
-    chemicalPotentials = 0 
-    yFractions = 0 
+    def __init__(self, eqConditions):
+        self.eqConditions = eqConditions
+        
+    def do_calculate(self):
+        phaseNames, userDatabse = [], [False,False]
+        tempPhaseNames = self.eqConditions['phaseNames']
+        databases = self.eqConditions['databases']
+        elementNames = self.eqConditions['elementNames']
+        if databases[1] == 'user':
+            userDatabse[0] = True
+        if databases[3] == 'user':
+            userDatabse[1] = True
+        for n, key in enumerate(['thermodynamics','kinetics']):
+            phaseNames.append(tempPhaseNames[key] if isinstance(tempPhaseNames[key],list) else [tempPhaseNames[key]])      
+        with TCPython() as tc:
+            tc.set_cache_folder(os.path.basename(__file__) + "_cache")
+            if not(userDatabse[0]):
+                thermokinetcData = tc.select_database_and_elements(databases[0], elementNames).without_default_phases()
+                for phase in phaseNames[0][:]:
+                    thermokinetcData.select_phase(phase)   
+                    print(phase)
+            else:
+                thermokinetcData = tc.select_user_database_and_elements(databases[0], elementNames).without_default_phases()
+                for phase in phaseNames[0][:]:
+                    thermokinetcData.select_phase(phase)      
+            if not(userDatabse[1]):
+                thermokinetcData.select_database_and_elements(databases[2], elementNames).without_default_phases()
+                for phase in phaseNames[1][:]:
+                    thermokinetcData.select_phase(phase)  
+                    print(phase)
+            else:
+                thermokinetcData.select_user_database_and_elements(databases[2], elementNames).without_default_phases()
+                for phase in phaseNames[1][:]:
+                    thermokinetcData.select_phase(phase)      
+            start = time.time()    
+            fetched_data = thermokinetcData.get_system() 
+            print(fetched_data.get_phases_in_system())
+            calculation =  fetched_data.with_single_equilibrium_calculation()
+            for key in self.eqConditions:
+                if key == 'T':
+                    calculation.set_condition(ThermodynamicQuantity.temperature(), self.eqConditions['T'])
+                if key == 'P':
+                    calculation.set_condition(ThermodynamicQuantity.pressure(), self.eqConditions['P'])
+                if key == 'N':
+                    calculation.set_condition(ThermodynamicQuantity.system_size(), self.eqConditions['N'])  
+            r=[]
+            for gridPoint in range(len(self.eqConditions['compositions']) // len(elementNames)):
+                compositions = self.eqConditions['compositions'][gridPoint*len(elementNames):(gridPoint+1)*len(elementNames)]
+                indices =  self.eqConditions['ementalConditions'][1]
+                for n, element in enumerate(self.eqConditions['ementalConditions'][0]):                       
+                    if self.eqConditions['ementalConditions'][2][n] == 'X':
+                        calculation.set_condition(ThermodynamicQuantity.mole_fraction_of_a_component(element),compositions[indices[n]])
+                    if self.eqConditions['ementalConditions'][2][n] == 'W':
+                        calculation.set_condition(ThermodynamicQuantity.mass_fraction_of_a_component(element),compositions[indices[n]])
+                    if self.eqConditions['ementalConditions'][2][n] == 'AC':                   
+                        calculation.set_condition(ThermodynamicQuantity.activity_of_component(element),self.eqConditions['ementalConditions'][3][n])
+                r.append(calculation.calculate().get_value_of(ThermodynamicQuantity.mole_fraction_of_a_phase('liquid')))
+                print(gridPoint)
+            print(r)
+        return r
 
-    ''' databases = (thermodybnamics; kinetics)
-        phaseNames = (thermodybnamics; kinetics)
-        elementNames = (names; substitutional index(0,1))
-        equilibriumConditions = 
-            Dictionary (N,P,T,X,W,N,Ac,
-            [a list of elements with the specific condition = value from fractions]
-            if condition =AC then value:real) 
-    '''
-    def __init__(self, databases, phaseNames, elementNames, equilibriumConditions, fractions):
-        self.databases =  databases
-        self.phaseNames = phaseNames
-        self.elementNames = elementNames
-        self.equilibriumConditions = equilibriumConditions
-        self.fractions = fractions
-#
-#
-    #def calculate_equilibrium(self):
-    #    with TCPython() as tc:
-    #        initial_system = tc.select_database_and_elements(self.databases[0], self.elementNames).without_default_phases()
-    #        for phase in self.phaseNames[0][:]:
-    #            initial_system.select_phase(phase)       
-    #        initial_system.select_database_and_elements(self.databases[1], self.elementNames).without_default_phases()
-    #        for phase in self.phaseNames[1][:]:
-    #            initial_system.select_phase(phase)
-    #        system = initial_system.get_system()
-    #        calc = system.with_single_equilibrium_calculation()
-    #        
-    #        calc.set_condition(ThermodynamicQuantity.temperature(), tempera)
-    #        calc.set_condition(ThermodynamicQuantity.pressure(), press)
-    #        for gp in range(ngd):
-    #            print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" + " grid point= ", str(gp))
-    #            cnt = 1
-    #            for element in element_names[0:-1]:
-    #                calc.set_condition(ThermodynamicQuantity.mole_fraction_of_a_component((element)), mf_in[cnt][gp])
-    #                cnt += 1
-    #            calc_res = calc.calculate()
-    #            stable_phases = calc_res.get_stable_phases()
-    #            binary_list = list(itertool.product(stable_phases, element_names))
-    #            for element in element_names:
-    #                #calc_mf.append(calc_res.get_value_of('x({})'.format(element)))
-    #                mf_out.append(calc_res.get_value_of('x({})'.format(element)))
-    #                #wf.append(calc_res.get_value_of('w({})'.format(element)))
-    #                wf_out.append(calc_res.get_value_of('w({})'.format(element)))
-    #            for phase in stable_phases:
-    #                vpv_out.append(calc_res.get_value_of('vpv({})'.format(phase)))
-    #                npm_out.append(calc_res.get_value_of('npm({})'.format(phase)))
-    #            for binary in binary_list:
-    #                x_ph_out.append(calc_res.get_value_of('x({},{})'.format(binary[0], binary[1])))
-    #            for binary in binary_list:
-    #                try:
-    #                    y_ph_out.append(calc_res.get_value_of('y({},{})'.format(binary[0], binary[1])))
-    #                except Exception as error:
-    #                    print('y({},{})=error'.format(binary[0], binary[1]))
-    #                    y_ph_out.append(-1)
-    #    return mf_out, wf_out, vpv_out, npm_out, y_ph_out, x_ph_out
-##
+        end = time.time()
+        print('timelog single tread 2 ',end-start)
+
+
+
+    def do_parallel(self):
+        phaseNames, userDatabse = [], [False,False]
+        tempPhaseNames = self.eqConditions['phaseNames']
+        databases = self.eqConditions['databases']
+        elementNames = self.eqConditions['elementNames']
+        if databases[1] == 'user':
+            userDatabse[0] = True
+        if databases[3] == 'user':
+            userDatabse[1] = True
+        for n, key in enumerate(['thermodynamics','kinetics']):
+            phaseNames.append(tempPhaseNames[key] if isinstance(tempPhaseNames[key],list) else [tempPhaseNames[key]])      
+        with TCPython() as tc:
+            tc.set_cache_folder(os.path.basename(__file__) + "_cache")
+            if not(userDatabse[0]):
+                thermokinetcData = tc.select_database_and_elements(databases[0], elementNames).without_default_phases()
+                for phase in phaseNames[0][:]:
+                    thermokinetcData.select_phase(phase)   
+                    print(phase)
+            else:
+                thermokinetcData = tc.select_user_database_and_elements(databases[0], elementNames).without_default_phases()
+                for phase in phaseNames[0][:]:
+                    thermokinetcData.select_phase(phase)      
+            if not(userDatabse[1]):
+                thermokinetcData.select_database_and_elements(databases[2], elementNames).without_default_phases()
+                for phase in phaseNames[1][:]:
+                    thermokinetcData.select_phase(phase)  
+                    print(phase)
+            else:
+                thermokinetcData.select_user_database_and_elements(databases[2], elementNames).without_default_phases()
+                for phase in phaseNames[1][:]:
+                    thermokinetcData.select_phase(phase)      
+            fetched_data = thermokinetcData.get_system() 
+            print(fetched_data.get_phases_in_system())
+            calculation =  fetched_data.with_single_equilibrium_calculation()
+            for key in self.eqConditions:
+                if key == 'T':
+                    calculation.set_condition(ThermodynamicQuantity.temperature(), self.eqConditions['T'])
+                if key == 'P':
+                    calculation.set_condition(ThermodynamicQuantity.pressure(), self.eqConditions['P'])
+                if key == 'N':
+                    calculation.set_condition(ThermodynamicQuantity.system_size(), self.eqConditions['N'])  
+            indices =  self.eqConditions['ementalConditions'][1]
+            for n, element in enumerate(self.eqConditions['ementalConditions'][0]):                       
+                if self.eqConditions['ementalConditions'][2][n] == 'X':
+                    calculation.set_condition(ThermodynamicQuantity.mole_fraction_of_a_component(element),compositions[indices[n]])
+                if self.eqConditions['ementalConditions'][2][n] == 'W':
+                    calculation.set_condition(ThermodynamicQuantity.mass_fraction_of_a_component(element),compositions[indices[n]])
+                if self.eqConditions['ementalConditions'][2][n] == 'AC':                   
+                    calculation.set_condition(ThermodynamicQuantity.activity_of_component(element),self.eqConditions['ementalConditions'][3][n])
+            r = calculation.calculate().get_value_of(ThermodynamicQuantity.mole_fraction_of_a_phase('liquid'))
+        return r
+
+    def do_parallle_calculator(self):
+        start = time.time()    
+        results = []
+        processes = 8
+        temp = self.eqConditions
+        with concurrent.futures.ProcessPoolExecutor(processes) as executor:
+            for out in executor.map(self.do_parallel, temp):
+                results.append(out)
+        end = time.time()
+        print('timelog parallel 1',end-start)
+        print(results)
+        return results

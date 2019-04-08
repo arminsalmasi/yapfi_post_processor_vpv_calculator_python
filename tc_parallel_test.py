@@ -11,6 +11,7 @@ def do_step(param):
         for phase in param['phaseNames']:
             init.select_phase(phase)       
         system = init.get_system()
+        print(system.get_phases_in_system())
         calculations = system.with_single_equilibrium_calculation()
         calculations.set_condition(ThermodynamicQuantity.temperature(), param['T'])
         calculations.set_condition(ThermodynamicQuantity.pressure(), param['P'])

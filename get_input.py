@@ -3,15 +3,15 @@ import os
 
 class Indata:
     
-    centralCoordinats = 0;
-    domainSize = 0;
-    moleFractions = 0;
-    timeList = 0;
-    elementNames = 0;
-    phaseNames = 0;
-    numberOfElements = 0;
-    numberOfPhases = 0;
-    numberOfGridPoints = 0;
+    centralCoordinats = 0
+    domainSize = 0
+    moleFractions = 0
+    timeList = 0
+    elementNames = 0
+    phaseNames = 0
+    numberOfElements = 0
+    numberOfPhases = 0
+    numberOfGridPoints = 0
 
 
     def __init__(self, path):
