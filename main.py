@@ -16,8 +16,8 @@ def main():
         'compositions':rawData.moleFractions, \
         'ementalConditions':[['C','Co','Ti','N'],[0,1,2,3],['X','X','X','X'],[],[]] }    #ementalConditions':[[elname],[index],[variables X W Ac ACP],[activity value],[reference phase]] \  '''
     equilibriumCalculator = Equilibrium(conditions)
+    r =  equilibriumCalculator.do_parallle_calculator()
     r = equilibriumCalculator.do_calculate()   
-
 
     #conditionsParallel = []
     #for gridPoint in range(rawData.numberOfGridPoints):

@@ -73,9 +73,9 @@ class Equilibrium:
 
 
 
-    def do_parallel(self):
+    def do_parallel(eqConditions):
         phaseNames, userDatabse = [], [False,False]
-        tempPhaseNames = self.eqConditions['phaseNames']
+        tempPhaseNames = eqConditions['phaseNames']
         databases = self.eqConditions['databases']
         elementNames = self.eqConditions['elementNames']
         if databases[1] == 'user':
