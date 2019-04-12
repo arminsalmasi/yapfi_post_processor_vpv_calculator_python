@@ -5,7 +5,8 @@ import time
 
 class Equilibrium:
     ''' i / o '''
-    eqConditions, eqState = 0, 0
+    eqConditions = 0
+    eqState = 0
 
     def __init__(self, eqConditions):
         self.eqConditions = eqConditions
@@ -27,7 +28,6 @@ class Equilibrium:
                 thermokinetcData = tc.select_database_and_elements(databases[0], elementNames).without_default_phases()
                 for phase in phaseNames[0][:]:
                     thermokinetcData.select_phase(phase)   
-                    print(phase)
             else:
                 thermokinetcData = tc.select_user_database_and_elements(databases[0], elementNames).without_default_phases()
                 for phase in phaseNames[0][:]:
@@ -36,14 +36,12 @@ class Equilibrium:
                 thermokinetcData.select_database_and_elements(databases[2], elementNames).without_default_phases()
                 for phase in phaseNames[1][:]:
                     thermokinetcData.select_phase(phase)  
-                    print(phase)
             else:
                 thermokinetcData.select_user_database_and_elements(databases[2], elementNames).without_default_phases()
                 for phase in phaseNames[1][:]:
                     thermokinetcData.select_phase(phase)      
             start = time.time()    
             fetched_data = thermokinetcData.get_system() 
-            print(fetched_data.get_phases_in_system())
             calculation =  fetched_data.with_single_equilibrium_calculation()
             for key in self.eqConditions:
                 if key == 'T':
@@ -64,20 +62,16 @@ class Equilibrium:
                     if self.eqConditions['ementalConditions'][2][n] == 'AC':                   
                         calculation.set_condition(ThermodynamicQuantity.activity_of_component(element),self.eqConditions['ementalConditions'][3][n])
                 r.append(calculation.calculate().get_value_of(ThermodynamicQuantity.mole_fraction_of_a_phase('liquid')))
-                print(gridPoint)
-            print(r)
         return r
-
         end = time.time()
         print('timelog single tread 2 ',end-start)
 
 
-
-    def do_parallel(eqConditions):
+    def do_parallel(self, param):
         phaseNames, userDatabse = [], [False,False]
-        tempPhaseNames = eqConditions['phaseNames']
-        databases = self.eqConditions['databases']
-        elementNames = self.eqConditions['elementNames']
+        tempPhaseNames = param['phaseNames']
+        databases = param['databases']
+        elementNames = param['elementNames']
         if databases[1] == 'user':
             userDatabse[0] = True
         if databases[3] == 'user':
@@ -107,31 +101,36 @@ class Equilibrium:
             fetched_data = thermokinetcData.get_system() 
             print(fetched_data.get_phases_in_system())
             calculation =  fetched_data.with_single_equilibrium_calculation()
-            for key in self.eqConditions:
+            for key in param:
                 if key == 'T':
-                    calculation.set_condition(ThermodynamicQuantity.temperature(), self.eqConditions['T'])
+                    calculation.set_condition(ThermodynamicQuantity.temperature(), param['T'])
                 if key == 'P':
-                    calculation.set_condition(ThermodynamicQuantity.pressure(), self.eqConditions['P'])
+                    calculation.set_condition(ThermodynamicQuantity.pressure(), param['P'])
                 if key == 'N':
-                    calculation.set_condition(ThermodynamicQuantity.system_size(), self.eqConditions['N'])  
-            indices =  self.eqConditions['ementalConditions'][1]
-            for n, element in enumerate(self.eqConditions['ementalConditions'][0]):                       
-                if self.eqConditions['ementalConditions'][2][n] == 'X':
-                    calculation.set_condition(ThermodynamicQuantity.mole_fraction_of_a_component(element),compositions[indices[n]])
-                if self.eqConditions['ementalConditions'][2][n] == 'W':
-                    calculation.set_condition(ThermodynamicQuantity.mass_fraction_of_a_component(element),compositions[indices[n]])
-                if self.eqConditions['ementalConditions'][2][n] == 'AC':                   
-                    calculation.set_condition(ThermodynamicQuantity.activity_of_component(element),self.eqConditions['ementalConditions'][3][n])
+                    calculation.set_condition(ThermodynamicQuantity.system_size(), param['N'])  
+            indices =  param['ementalConditions'][1]
+            for n, element in enumerate(param['ementalConditions'][0]):                       
+                if param['ementalConditions'][2][n] == 'X':
+                    calculation.set_condition(ThermodynamicQuantity.mole_fraction_of_a_component(element),param['compositions'][indices[n]])
+                if param['ementalConditions'][2][n] == 'W':
+                    calculation.set_condition(ThermodynamicQuantity.mass_fraction_of_a_component(element),param['compositions'][indices[n]])
+                if param['ementalConditions'][2][n] == 'AC':                   
+                    calculation.set_condition(ThermodynamicQuantity.activity_of_component(element),param['ementalConditions'][3][n])
             r = calculation.calculate().get_value_of(ThermodynamicQuantity.mole_fraction_of_a_phase('liquid'))
         return r
 
-    def do_parallle_calculator(self):
+    def do_parallel_calculator(self):
         start = time.time()    
         results = []
         processes = 8
-        temp = self.eqConditions
+        #self.do_parallel(self.eqConditions)
+        elementNames = elementNames = self.eqConditions['elementNames']
+        temp = []
+        for gridPoint in range(len(self.eqConditions['compositions']) // len(elementNames)):
+            temp.append( self.eqConditions['compositions'][gridPoint*len(elementNames):(gridPoint+1)*len(elementNames)])
+        self.eqConditions['compositions'] = temp
         with concurrent.futures.ProcessPoolExecutor(processes) as executor:
-            for out in executor.map(self.do_parallel, temp):
+            for out in executor.map(self.do_parallel, self.eqConditions):
                 results.append(out)
         end = time.time()
         print('timelog parallel 1',end-start)

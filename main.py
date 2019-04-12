@@ -15,9 +15,14 @@ def main():
         'N':1,'P':1e5,'T':1723.15, \
         'compositions':rawData.moleFractions, \
         'ementalConditions':[['C','Co','Ti','N'],[0,1,2,3],['X','X','X','X'],[],[]] }    #ementalConditions':[[elname],[index],[variables X W Ac ACP],[activity value],[reference phase]] \  '''
-    equilibriumCalculator = Equilibrium(conditions)
-    r =  equilibriumCalculator.do_parallle_calculator()
-    r = equilibriumCalculator.do_calculate()   
+    
+
+    equilibriumCalculator_parallel = Equilibrium(conditions)
+    equilibriumCalculator_parallel.do_parallel_calculator()
+
+    equilibriumCalculator_mono = Equilibrium(conditions)
+    r = equilibriumCalculator_mono.do_calculate()   
+
 
     #conditionsParallel = []
     #for gridPoint in range(rawData.numberOfGridPoints):
